@@ -1,0 +1,32 @@
+.auth-container {
+  text-align: center;
+  margin-top: 120px;
+}
+
+.signin-section,
+.signup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 300px;
+  margin: 0 auto;
+}
+
+.signup-form input {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.signup-form button {
+  margin-top: 10px;
+}
