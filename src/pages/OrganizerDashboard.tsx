@@ -96,7 +96,7 @@ const OrganizerDashboard: React.FC = () => {
 
     window.ethereum?.on('accountsChanged', handleAccountsChanged);
     return () => window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-  }, []);
+  }, [navigate]);
 
   // Load vendors from blockchain
   useEffect(() => {

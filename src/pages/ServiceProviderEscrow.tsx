@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
 import VantaBackground from '../components/VantaBackground';
 import WalletButton from '../components/WalletButton';
@@ -29,6 +29,7 @@ interface ServiceProviderEscrowProps {
 
 const ServiceProviderEscrow: React.FC<ServiceProviderEscrowProps> = ({ account, onBack, refreshTrigger = 0 }) => {
   const [escrowJobs, setEscrowJobs] = useState<EscrowJob[]>([]);
+  const escrowJobsRef = useRef(escrowJobs);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [manualRefresh, setManualRefresh] = useState(0);
@@ -43,15 +44,6 @@ const ServiceProviderEscrow: React.FC<ServiceProviderEscrowProps> = ({ account, 
     if (!address) return '';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
-
-  // Filter jobs based on active tab
-  const filteredJobs = escrowJobs.filter(job => {
-    if (activeTab === 'active') {
-      return job.status === 'Funded' || job.status === 'InProgress' || job.status === 'Completed';
-    } else {
-      return job.status === 'Released' || job.status === 'Refunded';
-    }
-  });
 
   // Add notification
   const addNotification = (message: string) => {
@@ -86,6 +78,7 @@ const ServiceProviderEscrow: React.FC<ServiceProviderEscrowProps> = ({ account, 
         
         if (totalEscrowsNum === 0) {
           console.log('No escrows found on contract');
+          escrowJobsRef.current = [];
           setEscrowJobs([]);
           setLoading(false);
           return;
@@ -140,15 +133,17 @@ const ServiceProviderEscrow: React.FC<ServiceProviderEscrowProps> = ({ account, 
         console.log('Fetched vendor jobs:', jobs);
         
         // Check for new funded escrows and notify
-        const prevJobIds = escrowJobs.map(j => j.id);
+        const previousJobs = escrowJobsRef.current;
+        const prevJobIds = previousJobs.map(j => j.id);
         const newJobs = jobs.filter(j => !prevJobIds.includes(j.id) && j.status === 'Funded');
         
-        if (newJobs.length > 0 && escrowJobs.length > 0) {
+        if (newJobs.length > 0 && previousJobs.length > 0) {
           newJobs.forEach(job => {
             addNotification(`New job order! Job #${job.id} - ${job.originalAmount} has been assigned to you`);
           });
         }
         
+        escrowJobsRef.current = jobs;
         setEscrowJobs(jobs);
         setLoading(false);
       } catch (error) {

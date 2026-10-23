@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import VantaBackground from '../components/VantaBackground';
@@ -28,7 +28,6 @@ const ServiceProviderDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [account, setAccount] = useState<string>('');
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
-  const [escrowRefreshTrigger, setEscrowRefreshTrigger] = useState(0);
   const [profile, setProfile] = useState<ServiceProfile | null>(null);
   const [formData, setFormData] = useState({
     businessName: '',
@@ -42,53 +41,7 @@ const ServiceProviderDashboard: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAccount();
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      const selectedAddress = sessionStorage.getItem(ACTIVE_WALLET_KEY);
-      if (!selectedAddress || !accounts.some((wallet) => wallet.toLowerCase() === selectedAddress.toLowerCase())) {
-        sessionStorage.removeItem(ACTIVE_WALLET_KEY);
-        setAccount('');
-        setProfile(null);
-        setNftCount(0);
-        setLoading(false);
-        navigate('/', { replace: true });
-        return;
-      }
-    };
-
-    window.ethereum?.on('accountsChanged', handleAccountsChanged);
-    return () => window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-  }, []);
-
-  const loadAccount = async () => {
-    const provider = getProvider();
-    if (provider) {
-      try {
-          const selectedAddress = sessionStorage.getItem(ACTIVE_WALLET_KEY);
-          if (!selectedAddress) {
-            navigate('/', { replace: true });
-            return;
-          }
-          const signer = await provider.getSigner(selectedAddress);
-        const address = await signer.getAddress();
-        setAccount(address);
-        
-        // Fetch NFT count
-        await fetchNFTCount(provider, address);
-        
-        // Load profile from blockchain
-        await loadProfileFromBlockchain(provider, address);
-      } catch (err) {
-        console.error('Failed to get account:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const fetchNFTCount = async (provider: any, address: string) => {
+  const fetchNFTCount = useCallback(async (provider: any, address: string) => {
     try {
       const ERC721_ABI = [
         'function balanceOf(address owner) view returns (uint256)',
@@ -100,9 +53,9 @@ const ServiceProviderDashboard: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch NFT count:', err);
     }
-  };
+  }, []);
 
-  const loadProfileFromBlockchain = async (provider: any, address: string) => {
+  const loadProfileFromBlockchain = useCallback(async (provider: any, address: string) => {
     try {
       const contract = new ethers.Contract(CHAIN_CONNECT_V2_ADDRESS, CHAIN_CONNECT_V2_ABI, provider);
       const vendorProfile = await contract.getVendorProfile(address);
@@ -136,7 +89,50 @@ const ServiceProviderDashboard: React.FC = () => {
     } catch (err) {
       console.error('Failed to load profile from blockchain:', err);
     }
-  };
+  }, []);
+
+  const loadAccount = useCallback(async () => {
+    const provider = getProvider();
+    if (provider) {
+      try {
+        const selectedAddress = sessionStorage.getItem(ACTIVE_WALLET_KEY);
+        if (!selectedAddress) {
+          navigate('/', { replace: true });
+          return;
+        }
+        const signer = await provider.getSigner(selectedAddress);
+        const address = await signer.getAddress();
+        setAccount(address);
+
+        await fetchNFTCount(provider, address);
+        await loadProfileFromBlockchain(provider, address);
+      } catch (err) {
+        console.error('Failed to get account:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [fetchNFTCount, loadProfileFromBlockchain, navigate]);
+
+  useEffect(() => {
+    loadAccount();
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      const selectedAddress = sessionStorage.getItem(ACTIVE_WALLET_KEY);
+      if (!selectedAddress || !accounts.some((wallet) => wallet.toLowerCase() === selectedAddress.toLowerCase())) {
+        sessionStorage.removeItem(ACTIVE_WALLET_KEY);
+        setAccount('');
+        setProfile(null);
+        setNftCount(0);
+        setLoading(false);
+        navigate('/', { replace: true });
+        return;
+      }
+    };
+
+    window.ethereum?.on('accountsChanged', handleAccountsChanged);
+    return () => window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
+  }, [loadAccount, navigate]);
 
   const getLevelName = (level: number): string => {
     switch (level) {
@@ -154,11 +150,6 @@ const ServiceProviderDashboard: React.FC = () => {
       case 1: return '#CD7F32'; // Bronze for Beginner
       default: return '#6C63FF';
     }
-  };
-
-  const formatAddress = (address: string) => {
-    if (!address) return '';
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
   const handleStartManaging = () => {
@@ -273,7 +264,6 @@ const ServiceProviderDashboard: React.FC = () => {
       <ServiceProviderEscrow 
         account={account}
         onBack={handleBackToDashboard}
-        refreshTrigger={escrowRefreshTrigger}
       />
     );
   }

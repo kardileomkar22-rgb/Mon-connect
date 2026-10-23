@@ -1,6 +1,6 @@
 import React from 'react';
 import VantaBackground from '../components/VantaBackground';
-import { FaCheckCircle, FaRocket, FaChartBar, FaUsers, FaPalette } from 'react-icons/fa';
+import { FaCheckCircle } from 'react-icons/fa';
 
 const Dashboard: React.FC = () => {
   return (

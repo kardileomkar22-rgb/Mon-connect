@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
 import VantaBackground from '../components/VantaBackground';
 import { getProvider } from '../utils/nft';
@@ -30,6 +30,7 @@ interface EscrowAndPaymentsProps {
 const EscrowAndPayments: React.FC<EscrowAndPaymentsProps> = ({ account, onBack, onBrowseVendors, refreshTrigger = 0 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [escrowJobs, setEscrowJobs] = useState<EscrowJob[]>([]);
+  const escrowJobsRef = useRef(escrowJobs);
   const [loading, setLoading] = useState(true);
   const [manualRefresh, setManualRefresh] = useState(0);
   const [selectedJob, setSelectedJob] = useState<EscrowJob | null>(null);
@@ -85,6 +86,7 @@ const EscrowAndPayments: React.FC<EscrowAndPaymentsProps> = ({ account, onBack, 
         
         if (totalEscrowsNum === 0) {
           console.log('No escrows found on contract');
+          escrowJobsRef.current = [];
           setEscrowJobs([]);
           setLoading(false);
           return;
@@ -140,15 +142,17 @@ const EscrowAndPayments: React.FC<EscrowAndPaymentsProps> = ({ account, onBack, 
         console.log('Fetched jobs from contract:', jobs);
         
         // Check for new funded escrows and notify
-        const prevJobIds = escrowJobs.map(j => j.id);
+        const previousJobs = escrowJobsRef.current;
+        const prevJobIds = previousJobs.map(j => j.id);
         const newJobs = jobs.filter(j => !prevJobIds.includes(j.id) && j.status === 'Funded');
         
-        if (newJobs.length > 0 && escrowJobs.length > 0) { // Only notify if not first load
+        if (newJobs.length > 0 && previousJobs.length > 0) { // Only notify if not first load
           newJobs.forEach(job => {
             addNotification(`New escrow created! Job #${job.id} - ${job.originalAmount} has been funded`);
           });
         }
         
+        escrowJobsRef.current = jobs;
         setEscrowJobs(jobs);
         setLoading(false);
       } catch (error) {
